@@ -7,9 +7,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/config"
-	"github.com/codecrafters-io/redis-starter-go/internal/constant"
-	"github.com/codecrafters-io/redis-starter-go/internal/core/io_multiplexing"
+	"github.com/iscoreyagain/Memora/internal/config"
+	"github.com/iscoreyagain/Memora/internal/constant"
+	"github.com/iscoreyagain/Memora/internal/core"
+	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing"
+	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing/commands"
+	"golang.org/x/sys/unix"
 )
 
 func handleConnections(conn net.Conn) {
@@ -33,9 +36,9 @@ func handleConnections(conn net.Conn) {
 	}
 }
 
-func readCommands(conn net.Conn) (string, error) {
+func readCommands(fd int) (commands.Command, error) {
 	buf := make([]byte, 512)
-	n, err := conn.Read(buf)
+	n, err := syscall.Read(fd, buf)
 	if err != nil {
 		return "", err
 	}
@@ -108,7 +111,7 @@ func RunIoMultiplexingServer() {
 			if events[i].Fd == serverFd {
 				log.Printf("new client is trying to connect")
 				// set up new connection
-				connFd, _, err := syscall.Accept(serverFd)
+				connFd, _, err := unix.Accept(serverFd)
 				if err != nil {
 					log.Println("err", err)
 					continue

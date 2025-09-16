@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/core/io_multiplexing/commands"
+	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing/commands"
 )
 
 // REdis Serialization Protocol (RESP) is the simple and easy-to-parse protocol using by Redis clients and servers to communicate with each other.

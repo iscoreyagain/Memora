@@ -3,7 +3,7 @@ package core
 import (
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/constant"
+	"github.com/iscoreyagain/Memora/internal/constant"
 )
 
 func ActiveDeleteExpiredKeys() {

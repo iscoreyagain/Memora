@@ -3,7 +3,7 @@ package data_structure
 import (
 	"sort"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/config"
+	"github.com/iscoreyagain/Memora/internal/config"
 )
 
 type EvictionCandidate struct {

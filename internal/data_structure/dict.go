@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/config"
+	"github.com/iscoreyagain/Memora/internal/config"
 )
 
 type Obj struct {

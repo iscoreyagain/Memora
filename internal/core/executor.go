@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/constant"
-	"github.com/codecrafters-io/redis-starter-go/internal/data_structure"
-	"github.com/codecrafters-io/redis-starter-go/internal/protocol"
+	"github.com/iscoreyagain/Memora/internal/constant"
+	"github.com/iscoreyagain/Memora/internal/data_structure"
+	"github.com/iscoreyagain/Memora/internal/protocol"
 )
 
 func cmdPING(args []string) []byte {

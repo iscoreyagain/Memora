@@ -1,6 +1,6 @@
 package core
 
-import "github.com/codecrafters-io/redis-starter-go/internal/data_structure"
+import "github.com/iscoreyagain/Memora/internal/data_structure"
 
 var dictStore *data_structure.Dict
 var zsetStore map[string]*data_structure.ZSet

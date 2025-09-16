@@ -5,7 +5,7 @@ package io_multiplexing
 import (
 	"log"
 
-	"github.com/codecrafters-io/redis-starter-go/internal/config"
+	"github.com/iscoreyagain/Memora/internal/config"
 	"golang.org/x/sys/unix"
 )
 
