@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"syscall"
 	"time"
 
 	"github.com/iscoreyagain/Memora/internal/config"
@@ -12,42 +11,26 @@ import (
 	"github.com/iscoreyagain/Memora/internal/core"
 	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing"
 	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing/commands"
+	"github.com/iscoreyagain/Memora/internal/protocol"
 	"golang.org/x/sys/unix"
 )
 
-func handleConnections(conn net.Conn) {
-	log.Println("Handling connection from ", conn.RemoteAddr())
-
-	for {
-		cmd, err := readCommands(conn)
-		log.Println("command: ", cmd)
-		if err != nil {
-			conn.Close()
-			log.Println("Clent disconnected ", conn.RemoteAddr())
-
-			if err == io.EOF {
-				break
-			}
-		}
-
-		if err := respond(cmd, conn); err != nil {
-			log.Println("Error while writing:", err)
-		}
-	}
-}
-
-func readCommands(fd int) (commands.Command, error) {
+func readCommands(fd int) (*commands.Command, error) {
 	buf := make([]byte, 512)
-	n, err := syscall.Read(fd, buf)
+	n, err := unix.Read(fd, buf)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(buf[:n]), nil
+	if n == 0 {
+		return nil, io.EOF
+	}
+
+	return protocol.ParseCmd(buf)
 }
 
-func respond(res string, conn net.Conn) error {
-	if _, err := conn.Write([]byte(res)); err != nil {
+func respond(data string, fd int) error {
+	if _, err := unix.Write(fd, []byte(data)); err != nil {
 		return err
 	}
 
@@ -127,9 +110,9 @@ func RunIoMultiplexingServer() {
 			} else {
 				cmd, err := readCommands(events[i].Fd)
 				if err != nil {
-					if err == io.EOF || err == syscall.ECONNRESET {
+					if err == io.EOF || err == unix.ECONNRESET {
 						log.Println("client disconnected")
-						_ = syscall.Close(events[i].Fd)
+						_ = unix.Close(events[i].Fd)
 						continue
 					}
 					log.Println("read error:", err)
