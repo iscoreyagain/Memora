@@ -4,6 +4,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/iscoreyagain/Memora/internal/config"
@@ -14,6 +17,8 @@ import (
 	"github.com/iscoreyagain/Memora/internal/protocol"
 	"golang.org/x/sys/unix"
 )
+
+var serverStatus int32 = constant.SERVER_IDLE
 
 func readCommands(fd int) (*commands.Command, error) {
 	buf := make([]byte, 512)
@@ -37,7 +42,8 @@ func respond(data string, fd int) error {
 	return nil
 }
 
-func RunIoMultiplexingServer() {
+func RunIoMultiplexingServer(wg *sync.WaitGroup) {
+	defer wg.Done()
 	log.Println("Running I/O Multiplexing Server on port", config.Port)
 	listener, err := net.Listen(config.Protocol, config.Port)
 	if err != nil {
@@ -77,10 +83,18 @@ func RunIoMultiplexingServer() {
 
 	var events = make([]io_multiplexing.Event, config.MAXIMUM_CONNECTION)
 	var lastActiveExpireExecTime = time.Now()
-	for {
+	for atomic.LoadInt32(&serverStatus) != constant.SERVER_SHUTDOWN {
 		// Check last execution time and call if it is more than 100ms ago.
 		if time.Now().After(lastActiveExpireExecTime.Add(constant.ActiveExpireFrequency)) {
+			// Idle -> Busy
+			if !atomic.CompareAndSwapInt32(&serverStatus, constant.SERVER_IDLE, constant.SERVER_BUSY) {
+				if serverStatus == constant.SERVER_SHUTDOWN {
+					return
+				}
+			}
 			core.ActiveDeleteExpiredKeys()
+			// Busy -> Idle
+			atomic.SwapInt32(&serverStatus, constant.SERVER_IDLE)
 			lastActiveExpireExecTime = time.Now()
 		}
 		// wait for file descriptors in the monitoring list to be ready for I/O
@@ -88,6 +102,13 @@ func RunIoMultiplexingServer() {
 		events, err = ioMultiplexer.Wait()
 		if err != nil {
 			continue
+		}
+
+		// Idle -> Busy
+		if !atomic.CompareAndSwapInt32(&serverStatus, constant.SERVER_IDLE, constant.SERVER_BUSY) {
+			if serverStatus == constant.SERVER_SHUTDOWN {
+				return
+			}
 		}
 
 		for i := 0; i < len(events); i++ {
@@ -122,6 +143,24 @@ func RunIoMultiplexingServer() {
 					log.Println("err write:", err)
 				}
 			}
+		}
+
+		//Busy -> Idle
+		atomic.SwapInt32(&serverStatus, constant.SERVER_IDLE)
+	}
+}
+
+func WaitForSignals(wg *sync.WaitGroup, signals chan os.Signal) {
+	defer wg.Done()
+
+	<-signals
+	// Busy loop
+	for {
+		if atomic.CompareAndSwapInt32(&serverStatus, constant.SERVER_IDLE, constant.SERVER_SHUTDOWN) {
+			// When the server has done its job, it switch from "busy" state -> idle
+			// the comparision is been done, we swap it successfully and claim down the shut down state
+			log.Println("Shutting down gracefully")
+			os.Exit(0)
 		}
 	}
 }
