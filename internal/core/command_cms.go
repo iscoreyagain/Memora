@@ -1,9 +1,12 @@
-package commands
+package core
 
 import (
 	"errors"
 	"fmt"
 	"strconv"
+
+	"github.com/iscoreyagain/Memora/internal/constant"
+	"github.com/iscoreyagain/Memora/internal/data_structure"
 )
 
 func cmdCMSINITBYDIM(args []string) []byte {
@@ -23,6 +26,6 @@ func cmdCMSINITBYDIM(args []string) []byte {
 	if exist {
 		return Encode(errors.New("CMS: key already exists"), false)
 	}
-	cmsStore[key] = data_structure.CreateCMS(uint32(width), uint32(height))
+	cmsStore[key] = data_structure.CreateCMS(uint64(width), uint64(height))
 	return constant.RespOk
 }

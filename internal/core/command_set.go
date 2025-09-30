@@ -1,9 +1,9 @@
-package commands
+package core
 
 import (
-	"github.com/codecrafters-io/redis-starter-go/internal/data_structure"
-	"github.com/codecrafters-io/redis-starter-go/internal/core"
 	"errors"
+
+	"github.com/iscoreyagain/Memora/internal/data_structure"
 )
 
 func cmdSADD(args []string) []byte {
@@ -14,7 +14,7 @@ func cmdSADD(args []string) []byte {
 	set, exist := setStore[key]
 	if !exist {
 		set = data_structure.NewSimpleSet(key)
-		core.setStore[key] = set
+		setStore[key] = set
 	}
 	count := set.Add(args[1:]...)
 	return Encode(count, false)

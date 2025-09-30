@@ -1,12 +1,10 @@
-package protocol
+package core
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
 	"strings"
-
-	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing/commands"
 )
 
 // REdis Serialization Protocol (RESP) is the simple and easy-to-parse protocol using by Redis clients and servers to communicate with each other.
@@ -170,7 +168,7 @@ func Encode(value interface{}, isSimpleString bool) []byte {
 	}
 }
 
-func ParseCmd(data []byte) (*commands.Command, error) {
+func ParseCmd(data []byte) (*Command, error) {
 	value, err := Decode(data)
 	if err != nil {
 		return nil, err
@@ -181,6 +179,6 @@ func ParseCmd(data []byte) (*commands.Command, error) {
 	for i := range tokens {
 		tokens[i] = array[i].(string)
 	}
-	res := &commands.Command{Cmd: strings.ToUpper(tokens[0]), Args: tokens[1:]}
+	res := &Command{Cmd: strings.ToUpper(tokens[0]), Args: tokens[1:]}
 	return res, nil
 }
