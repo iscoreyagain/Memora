@@ -26,8 +26,8 @@ func (i *Item) CompateTo(other *Item) int {
 }
 
 type Node struct {
-	Items    *[]Item
-	Children *[]Node // Pointer(s) to child nodes
+	Items    []*Item
+	Children []*Node // Pointer(s) to child nodes
 	IsLeaf   bool    // True if it's a leaf node
 	Parent   *Node   // Pointer back to its parent
 	Leaf     *Node   // For leaf nodes, a pointer to the next leaf in the sequence
@@ -46,5 +46,198 @@ func NewBPlusTree(degree int) *BPlusTree {
 }
 
 func (t *BPlusTree) Score(member string) (float64, bool) {
-	
+	node := t.Root
+
+	if !node.IsLeaf {
+		node = node.Children[0]
+	}
+
+	for node != nil {
+		for _, item := range node.Items {
+			if item.Member == member {
+				return item.Score, true
+			}
+		}
+		node = node.Leaf
+	}
+
+	return 0, false
+}
+
+func (t *BPlusTree) Add(score float64, member string) int {
+	item := &Item{Score: score, Member: member}
+
+	if len(member) == 0 {
+		return 0
+	}
+	// Find the correct leaf to insert into
+	node := t.Root
+	for !node.IsLeaf {
+		// Find the correct child based on the score
+		i := 0
+		for i < len(node.Items) && score > node.Items[i].Score {
+			i++
+		}
+		node = node.Children[i]
+	}
+
+	// Check if the member already exists in the leaf node.
+	for i, existingItem := range node.Items {
+		if existingItem.Member == member {
+			node.Items[i].Score = score
+			return 1
+		}
+	}
+
+	// Member does not exist, insert it into the sorted position.
+	i := 0
+	for i < len(node.Items) && score >= node.Items[i].Score {
+		i++
+	}
+	node.Items = append(node.Items[:i], append([]*Item{item}, node.Items[i:]...)...)
+
+	// Split the node if it's over capacity.
+	if len(node.Items) > t.Degree-1 {
+		t.splitNode(node)
+	}
+
+	return 1
+}
+
+func (t *BPlusTree) splitNode(node *Node) {
+	// If the node is the root, we need to create a new root.
+	if node.Parent == nil {
+		t.splitRoot()
+		return
+	}
+
+	// Split based on whether the node is a leaf or an internal node.
+	if node.IsLeaf {
+		t.splitLeaf(node)
+	} else {
+		t.splitInternal(node)
+	}
+}
+
+func (t *BPlusTree) splitLeaf(node *Node) {
+	medianIndex := len(node.Items) / 2
+
+	// Create a new sibling leaf node.
+	newLeaf := &Node{
+		IsLeaf: true,
+		Parent: node.Parent,
+		Leaf:   node.Leaf,
+	}
+
+	// Move the second half of the items to the new leaf.
+	newLeaf.Items = append(newLeaf.Items, node.Items[medianIndex:]...)
+	node.Items = node.Items[:medianIndex]
+	// Update the 'Next' pointer for sequential traversal.
+	node.Leaf = newLeaf
+
+	// Promote the first key of the new leaf to the parent.
+	parent := node.Parent
+	promotedItem := newLeaf.Items[0]
+
+	// Find the insertion point in the parent node.
+	childIndex := 0
+	for childIndex < len(parent.Children) {
+		if parent.Children[childIndex] == node {
+			break
+		}
+		childIndex++
+	}
+
+	// Insert the promoted key and the new child node into the parent.
+	parent.Items = append(parent.Items[:childIndex], append([]*Item{promotedItem}, parent.Items[childIndex:]...)...)
+	parent.Children = append(parent.Children[:childIndex+1], append([]*Node{newLeaf}, parent.Children[childIndex+1:]...)...)
+
+	// If the parent now overflows, split it too.
+	if len(parent.Items) > t.Degree-1 {
+		t.splitNode(parent)
+	}
+}
+
+func (t *BPlusTree) splitInternal(node *Node) {
+	medianIndex := len(node.Items) / 2
+
+	// Create a new sibling internal node.
+	newInternal := &Node{
+		IsLeaf: false,
+		Parent: node.Parent,
+	}
+
+	// Promote the median key to the parent.
+	promotedItem := node.Items[medianIndex]
+
+	// Move the second half of the items and children to the new node.
+	newInternal.Items = append(newInternal.Items, node.Items[medianIndex+1:]...)
+	newInternal.Children = append(newInternal.Children, node.Children[medianIndex+1:]...)
+
+	// Trim the original node.
+	node.Items = node.Items[:medianIndex]
+	node.Children = node.Children[:medianIndex+1]
+
+	// Update parent pointers for the new children.
+	for _, child := range newInternal.Children {
+		child.Parent = newInternal
+	}
+
+	// Now, insert the promoted key and the new node into the parent.
+	parent := node.Parent
+
+	childIndex := 0
+	for childIndex < len(parent.Children) {
+		if parent.Children[childIndex] == node {
+			break
+		}
+		childIndex++
+	}
+
+	// Insert the promoted key and the new child.
+	parent.Items = append(parent.Items[:childIndex], append([]*Item{promotedItem}, parent.Items[childIndex:]...)...)
+	parent.Children = append(parent.Children[:childIndex+1], append([]*Node{newInternal}, parent.Children[childIndex+1:]...)...)
+
+	// If the parent now overflows, split it too.
+	if len(parent.Items) > t.Degree-1 {
+		t.splitNode(parent)
+	}
+}
+
+func (t *BPlusTree) splitRoot() {
+	oldRoot := t.Root
+	newRoot := &Node{}
+
+	// Create a new root and set the old root as its first child.
+	t.Root = newRoot
+	oldRoot.Parent = newRoot
+	newRoot.Children = append(newRoot.Children, oldRoot)
+
+	// Split the old root node.
+	if oldRoot.IsLeaf {
+		t.splitLeaf(oldRoot)
+	} else {
+		t.splitInternal(oldRoot)
+	}
+}
+
+func (t *BPlusTree) GetRank(member string) int {
+	rank := 0
+
+	node := t.Root
+	for !node.IsLeaf {
+		node = node.Children[0]
+	}
+
+	for node != nil {
+		for _, item := range node.Items {
+			if item.Member == member {
+				return rank
+			}
+			rank++
+		}
+		node = node.Leaf
+	}
+
+	return -1
 }

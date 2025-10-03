@@ -7,7 +7,12 @@ type SimpleSet struct {
 	dict map[string]struct{}
 }
 
-var setStore map[string]SimpleSet
+func NewSimpleSet(key string) *SimpleSet {
+	return &SimpleSet{
+		key:  key,
+		dict: make(map[string]struct{}),
+	}
+}
 
 // Implement SADD - Add unique member into the set
 // ** Return the number of members that successfully added to the set
@@ -62,8 +67,7 @@ func (s *SimpleSet) Card() int {
 	return len(s.dict)
 }
 
-//SINTER
-func (s *SimpleSet) Intersection(sets ...map[string]struct{}) map[string]struct{} {
+/* func (s *SimpleSet) Intersection(sets ...map[string]struct{}) map[string]struct{} {
 	if len(sets) == 0 {
 		return map[string]struct{}{}
 	}
@@ -98,4 +102,42 @@ func (s *SimpleSet) Intersection(sets ...map[string]struct{}) map[string]struct{
 	}
 
 	return mems
+}
+*/
+
+//SINTER
+func (s *SimpleSet) Intersection(sets ...*SimpleSet) *SimpleSet {
+	sets = append(sets, s)
+
+	base := s.dict
+	baseIdx := -1
+
+	for i := range sets {
+		if baseIdx == -1 || len(base) > len(sets[i].dict) {
+			base = sets[i].dict
+			baseIdx = i
+		}
+	}
+
+	mems := make(map[string]struct{})
+	for elem := range base {
+		found := true
+		for i := 0; i < len(sets); i++ {
+			if i == baseIdx {
+				continue
+			}
+			if _, exist := sets[i].dict[elem]; !exist {
+				found = false
+				break
+			}
+		}
+		if found {
+			mems[elem] = struct{}{}
+		}
+	}
+
+	return &SimpleSet{
+		key:  "",
+		dict: mems,
+	}
 }
