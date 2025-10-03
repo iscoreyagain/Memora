@@ -2,12 +2,20 @@
 a mini-Redis re-implementation with some inspired features by [DragonflyDB](https://www.dragonflydb.io/)
 
 # Supported Features:
-- _Multi-threaded_ architect
+- _Multi-threaded_ and [**shared-nothing**](https://en.wikipedia.org/wiki/Shared-nothing_architecture) architect
 - Multiplexing I/O using **epoll** for Linux and **kqueue** for macOS/BSD
-- RESP Protocol
+- [RESP Protocol](https://redis.io/docs/latest/develop/reference/protocol-spec/)
 - **Graceful shutdown** - Allowed to terminate the program elegantly
-- **Approximated LRU** eviction
-- Commands: (To be Continued)
+- **Approximated LRU** eviction 
+- Commands:
+
+  ○ PING
+
+  ○ SET, GET, DEL, TTL, INFO
+
+  ○ SADD, SREM, SMEMBERS, SCARD, SINTER, SINTERSTORE, SDIFF, SDIFFSTORE, SUNION, SUNIONSTORE
+
+  
 - Data structures:
 
   ○ Hashtable
