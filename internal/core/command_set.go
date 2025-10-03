@@ -22,7 +22,7 @@ func cmdSADD(args []string) []byte {
 
 func cmdSREM(args []string) []byte {
 	if len(args) < 2 {
-		return Encode(errors.New("(error) ERR wrong number of arguments for 'SADD' command"), false)
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SREM' command"), false)
 	}
 	key := args[0]
 	set, exist := setStore[key]
@@ -72,7 +72,7 @@ func cmdSCARD(args []string) []byte {
 }
 
 func cmdSINTER(args []string) []byte {
-	if len(args) <= 2 {
+	if len(args) < 2 {
 		return Encode(errors.New("(error) ERR wrong number of arguments for 'SINTER' command"), false)
 	}
 
@@ -81,17 +81,141 @@ func cmdSINTER(args []string) []byte {
 	for _, key := range args {
 		set, exist := setStore[key]
 		if !exist {
-			return Encode(nil, false)
+			set = data_structure.NewSimpleSet(key)
 		}
 		sets = append(sets, set)
 	}
 
 	resultSet := sets[0].Intersection(sets[1:]...)
 
-	members := make([]string, 0, len(resultSet.Members()))
-	for _, m := range resultSet.Members() {
-		members = append(members, m)
+	return Encode(resultSet.Members(), false)
+}
+
+func cmdSINTERSTORE(args []string) []byte {
+	if len(args) < 3 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SINTERSTORE' command"), false)
 	}
 
-	return Encode(members, false)
+	var sets []*data_structure.SimpleSet
+	destKey := args[0]
+
+	for _, key := range args[1:] {
+		set, exist := setStore[key]
+		if !exist {
+			set = data_structure.NewSimpleSet(key)
+		}
+		sets = append(sets, set)
+	}
+
+	resultSet := sets[0].IntersectionStore(destKey, sets...)
+
+	// Replace the old key with the new one
+	delete(setStore, destKey)
+
+	// Assign the new one
+	setStore[destKey] = resultSet
+
+	numbers := resultSet.Card()
+
+	// Return the number of elems in the stored set
+	return Encode(numbers, false)
+}
+
+func cmdSDIFF(args []string) []byte { // SDIFF key [key...] -> parsing -> ["key", "key1", "key2",...]
+	if len(args) < 2 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SDIFF' command"), false)
+	}
+
+	var sets []*data_structure.SimpleSet
+
+	for _, key := range args {
+		set, exist := setStore[key]
+		if !exist {
+			set = data_structure.NewSimpleSet(key)
+		}
+		sets = append(sets, set)
+	}
+
+	resultSet := sets[0].Difference(sets[1:]...)
+
+	return Encode(resultSet.Members(), false)
+}
+
+func cmdSDIFFSTORE(args []string) []byte {
+	if len(args) < 3 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SDIFFSTORE' command"), false)
+	}
+
+	destKey := args[0]
+	var sets []*data_structure.SimpleSet
+
+	for _, key := range args[1:] {
+		set, exist := setStore[key]
+		if !exist {
+			set = data_structure.NewSimpleSet(key)
+		}
+		sets = append(sets, set)
+	}
+
+	resultSet := sets[0].DifferenceStore(destKey, sets[1:]...)
+
+	// Replace the old key with the new one
+	delete(setStore, destKey)
+
+	// Assign the new one
+	setStore[destKey] = resultSet
+
+	numbers := resultSet.Card()
+
+	// Return the number of elems in the stored set
+	return Encode(numbers, false)
+}
+
+func cmdSUNION(args []string) []byte {
+	if len(args) < 2 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SUNION' command"), false)
+	}
+
+	var sets []*data_structure.SimpleSet
+	for _, key := range args {
+		set, exist := setStore[key]
+		if !exist {
+			set = data_structure.NewSimpleSet(key)
+		}
+		sets = append(sets, set)
+	}
+
+	resultSet := sets[0].Union(sets[1:]...)
+
+	return Encode(resultSet.Members(), false)
+}
+
+func cmdSUNIONSTORE(args []string) []byte {
+	if len(args) < 3 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'SUNIONSTORE' command"), false)
+	}
+
+	destKey := args[0]
+	var sets []*data_structure.SimpleSet
+
+	for _, key := range args[1:] {
+		set, exist := setStore[key]
+		if !exist {
+			set = data_structure.NewSimpleSet(key)
+		}
+		sets = append(sets, set)
+	}
+
+	resultSet := sets[0].UnionStore(destKey, sets[1:]...)
+
+	// Replace the old key with the new one
+	delete(setStore, destKey)
+
+	// Assign the new one
+	setStore[destKey] = resultSet
+
+	numbers := resultSet.Card()
+
+	// Return the number of elems in the stored set
+	return Encode(numbers, false)
 }

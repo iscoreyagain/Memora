@@ -67,43 +67,38 @@ func (s *SimpleSet) Card() int {
 	return len(s.dict)
 }
 
-/* func (s *SimpleSet) Intersection(sets ...map[string]struct{}) map[string]struct{} {
-	if len(sets) == 0 {
-		return map[string]struct{}{}
-	}
+// SDIFF
+// **Return the set contains the successive key's elements that are not in another sets
+func (s *SimpleSet) Difference(sets ...*SimpleSet) *SimpleSet {
+	diff := make(map[string]struct{})
 
-	base := sets[0]
-	baseIdx := 0
-
-	for i := 1; i < len(sets); i++ {
-		if len(sets[i]) < len(base) {
-			base = sets[i]
-			baseIdx = i
-		}
-	}
-
-	mems := make(map[string]struct{})
-
-	for elem := range base {
-		found := true
+	for elem := range s.dict {
+		found := false
 		for i := 0; i < len(sets); i++ {
-			if i == baseIdx {
-				continue
-			}
-
-			if _, exist := sets[i][elem]; !exist {
-				found = false
+			if _, exist := sets[i].dict[elem]; exist {
+				found = true
 				break
 			}
 		}
-		if found {
-			mems[elem] = struct{}{}
+		if !found {
+			diff[elem] = struct{}{}
 		}
 	}
 
-	return mems
+	return &SimpleSet{
+		key:  "",
+		dict: diff,
+	}
 }
-*/
+
+// SDIFFSTORE
+// **Similar to `SDIFF` but it also store that set with a new key = destKey
+func (s *SimpleSet) DifferenceStore(destKey string, sets ...*SimpleSet) *SimpleSet {
+	storeSet := s.Difference(sets...)
+	storeSet.key = destKey
+
+	return storeSet
+}
 
 //SINTER
 func (s *SimpleSet) Intersection(sets ...*SimpleSet) *SimpleSet {
@@ -140,4 +135,38 @@ func (s *SimpleSet) Intersection(sets ...*SimpleSet) *SimpleSet {
 		key:  "",
 		dict: mems,
 	}
+}
+
+func (s *SimpleSet) IntersectionStore(destKey string, sets ...*SimpleSet) *SimpleSet {
+	interSet := s.Intersection(sets...)
+	interSet.key = destKey
+
+	return interSet
+}
+
+// SUNION
+// **Return
+func (s *SimpleSet) Union(sets ...*SimpleSet) *SimpleSet {
+	sets = append(sets, s)
+	union := make(map[string]struct{})
+
+	for i := 0; i < len(sets); i++ {
+		set := sets[i]
+		for elem := range set.dict {
+			union[elem] = struct{}{}
+		}
+	}
+
+	return &SimpleSet{
+		key:  "",
+		dict: union,
+	}
+}
+
+//SUNIONSTORE
+func (s *SimpleSet) UnionStore(destKey string, sets ...*SimpleSet) *SimpleSet {
+	unionSet := s.Union(sets...)
+	unionSet.key = destKey
+
+	return unionSet
 }

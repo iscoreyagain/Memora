@@ -127,6 +127,14 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 		res = cmdSISMEMBER(cmd.Args)
 	case "SCARD":
 		res = cmdSCARD(cmd.Args)
+	case "SDIFF":
+		res = cmdSDIFF(cmd.Args)
+	case "SDIFFSTORE":
+		res = cmdSDIFFSTORE(cmd.Args)
+	case "SUNION":
+		res = cmdSUNION(cmd.Args)
+	case "SUNIONSTORE":
+		res = cmdSUNIONSTORE(cmd.Args)
 	// Count-Min Sketch
 	case "CMS.INITBYDIM":
 		res = cmdCMSINITBYDIM(cmd.Args)
