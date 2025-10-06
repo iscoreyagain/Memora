@@ -1,10 +1,13 @@
 package server
 
 import (
+	"hash/fnv"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,14 +16,63 @@ import (
 	"github.com/iscoreyagain/Memora/internal/constant"
 	"github.com/iscoreyagain/Memora/internal/core"
 	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing"
-	"github.com/iscoreyagain/Memora/internal/core/io_multiplexing/commands"
-	"github.com/iscoreyagain/Memora/internal/protocol"
 	"golang.org/x/sys/unix"
 )
 
 var serverStatus int32 = constant.SERVER_IDLE
 
-func readCommands(fd int) (*commands.Command, error) {
+type Server struct {
+	workers     []*core.Worker
+	handlers    []*RequestHandler
+	numWorkers  int
+	numHandlers int
+
+	// used for round robin assignment of new connections to the request handlers
+	nextHandler int
+}
+
+func (s *Server) getPartitionID(key string) int {
+	hasher := fnv.New32a()
+	hasher.Write([]byte(key))
+
+	return int(hasher.Sum32()) % s.numWorkers
+}
+
+func (s *Server) dispatch(task *core.Task) {
+	// Commands like PING etc., don't have a key.
+	// We can send them to any worker.
+	var key string
+	var workerID int
+	if len(task.Command.Args) > 0 {
+		key = task.Command.Args[0]
+		workerID = s.getPartitionID(key)
+	} else {
+		workerID = rand.Intn(s.numWorkers)
+	}
+
+	s.workers[workerID].TaskCh <- task
+}
+
+func NewServer() *Server {
+	numCores := runtime.NumCPU()
+	numHandlers := numCores / 2
+	numWorkers := numCores / 2
+
+	log.Printf("Initializing server with %d workers and %d io handler\n", numWorkers, numHandlers)
+
+	s := &Server{
+		workers:     make([]*core.Worker, numWorkers),
+		handlers:    make([]*RequestHandler, numHandlers),
+		numWorkers:  numWorkers,
+		numHandlers: numHandlers,
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		s.workers[i] = core.NewWorker(i, 1024)
+	}
+
+}
+func readCommands(fd int) (*core.Command, error) {
 	buf := make([]byte, 512)
 	n, err := unix.Read(fd, buf)
 	if err != nil {
@@ -31,7 +83,7 @@ func readCommands(fd int) (*commands.Command, error) {
 		return nil, io.EOF
 	}
 
-	return protocol.ParseCmd(buf)
+	return core.ParseCmd(buf)
 }
 
 func respond(data string, fd int) error {

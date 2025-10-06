@@ -135,6 +135,51 @@ func (b *Bucket) GetSlot(slotIdx int) uint64 {
 	for bitsLeft > 0 {
 		curByte := b.data[byteIdx]
 		remainingBits := 8 - bitIdx
-		startPos := bitsLeft // Mark the idx to start reading
+		bitsToRead := bitsLeft
+
+		// If the bits in that byte pos is smaller than our bits need to write/flip:
+		// [7][6][5][4][3][2][1] (bits) -> [0][0][0][1][0][1][1][0]
+		if int(bitsToRead) > remainingBits {
+			bitsToRead = uint8(remainingBits)
+		}
+
+		mask := uint64((1 << bitsToRead) - 1)
+		extracted := uint64(curByte>>bitIdx) & mask
+
+		res |= extracted << uint64(shift)
+
+		bitsLeft -= bitsToRead
+		shift += uint(bitsToRead)
+		byteIdx++
+		bitIdx = 0
+	}
+
+	return res
+}
+
+func (b *Bucket) SetSlot(slotIdx int, fp uint64) {
+	offset := slotIdx * int(b.SlotBits)
+	byteIdx := offset / 8
+	bitIdx := offset % 8
+
+	bitsLeft := b.SlotBits
+	shift := 0
+
+	for bitsLeft > 0 {
+		remaningBits := 8 - bitIdx
+		bitsToFlip := bitsLeft
+
+		if bitsToFlip > remainingBits {
+			bitsToFlip = uint8(remaningBits)
+		}
+
+		// mask to clear all the bits that we are going to overwrite
+		mask := uint64((1 << bitsToFlip) - 1)
+
+		// clear the bits
+		b.data[byteIdx] &^= byte(mask << bitIdx)
+
+		// start to flip the corresponding bits
+		b.data[byteIdx] |= byte((fp << bitIdx) & mask)
 	}
 }
