@@ -71,7 +71,18 @@ func NewServer() *Server {
 		s.workers[i] = core.NewWorker(i, 1024)
 	}
 
+	for i := 0; i < numHandlers; i++ {
+		handler, err := NewHandler(i, s)
+
+		if err != nil {
+			log.Fatalf("Failed to create request hanlders with id %d due to: %v", i, err)
+		} else {
+			s.handlers[i] = handler
+		}
+	}
+	return s
 }
+
 func readCommands(fd int) (*core.Command, error) {
 	buf := make([]byte, 512)
 	n, err := unix.Read(fd, buf)
