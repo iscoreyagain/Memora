@@ -7,6 +7,7 @@ var zsetStore map[string]*data_structure.ZSet
 var setStore map[string]*data_structure.SimpleSet
 var cmsStore map[string]*data_structure.CMS
 var bloomStore map[string]*data_structure.BloomFilter
+var listStore map[string]*data_structure.List
 
 func init() {
 	dictStore = data_structure.CreateDict()
@@ -14,4 +15,5 @@ func init() {
 	setStore = make(map[string]*data_structure.SimpleSet)
 	cmsStore = make(map[string]*data_structure.CMS)
 	bloomStore = make(map[string]*data_structure.BloomFilter)
+	listStore = make(map[string]*data_structure.List)
 }
