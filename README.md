@@ -13,6 +13,8 @@ a mini-Redis re-implementation with some inspired features by [DragonflyDB](http
 
   ○ SET, GET, DEL, TTL, INFO
 
+  ○ RPUSH, LPUSH, LLEN
+
   ○ SADD, SREM, SMEMBERS, SCARD, SINTER, SINTERSTORE, SDIFF, SDIFFSTORE, SUNION, SUNIONSTORE
 
   
@@ -29,4 +31,8 @@ a mini-Redis re-implementation with some inspired features by [DragonflyDB](http
   ○ [Count-min Sketch](https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch)
   
   ○ [Sorted Set](https://redis.io/docs/latest/develop/data-types/sorted-sets/)
+
+  ○ [Listpack](https://deepwiki.com/antirez/listpack/2.1-memory-layout-and-encoding#backlen-field-and-backward-traversal)
+
+  ○ Quicklist
   
