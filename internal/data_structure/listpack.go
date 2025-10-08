@@ -291,7 +291,7 @@ func GetCurrentEncodedSize(bytes []byte) uint64 {
 // This is the last thing of a LP's element structure (encoding type + element data + backlen) to be added. Thanks to
 // this genius design allowing us to backward traversal (traverse from the right to the left)
 func encodeBacklen(buf []byte, length uint64) uint64 {
-	if length < 127 {
+	if length <= 127 {
 		if buf != nil {
 			buf[0] = byte(length)
 		}
@@ -299,31 +299,31 @@ func encodeBacklen(buf []byte, length uint64) uint64 {
 	} else if length < 16383 {
 		if buf != nil {
 			buf[0] = byte(length >> 7)
-			buf[1] = byte(length&0xFF) | 128
+			buf[1] = byte(length&0x7F) | 128
 		}
 		return 2
 	} else if length < 2097151 {
 		if buf != nil {
 			buf[0] = byte(length >> 14)
-			buf[1] = byte((length>>7)&0xFF) | 128
-			buf[2] = byte(length&0xFF) | 128
+			buf[1] = byte((length>>7)&0x7F) | 128
+			buf[2] = byte(length&0x7F) | 128
 		}
 		return 3
 	} else if length < 268435455 {
 		if buf != nil {
 			buf[0] = byte(length >> 21)
-			buf[1] = byte((length>>14)&0xFF) | 128
-			buf[2] = byte((length>>7)&0xFF) | 128
-			buf[3] = byte(length&0xFF) | 128
+			buf[1] = byte((length>>14)&0x7F) | 128
+			buf[2] = byte((length>>7)&0x7F) | 128
+			buf[3] = byte(length&0x7F) | 128
 		}
 		return 4
 	} else {
 		if buf != nil {
 			buf[0] = byte(length >> 28)
-			buf[1] = byte((length>>21)&0xFF) | 128
-			buf[2] = byte((length>>14)&0xFF) | 128
-			buf[3] = byte((length>>7)&0xFF) | 128
-			buf[4] = byte(length&0xFF) | 128
+			buf[1] = byte((length>>21)&0x7F) | 128
+			buf[2] = byte((length>>14)&0x7F) | 128
+			buf[3] = byte((length>>7)&0x7F) | 128
+			buf[4] = byte(length&0x7F) | 128
 		}
 		return 5
 	}
