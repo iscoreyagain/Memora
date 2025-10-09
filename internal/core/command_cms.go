@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/iscoreyagain/Memora/internal/constant"
@@ -57,4 +58,47 @@ func cmdCMSINITBYPROB(args []string) []byte {
 	w, h := data_structure.CalcCMSDim(errRate, probability)
 	cmsStore[key] = data_structure.CreateCMS(w, h)
 	return constant.RespOk
+}
+
+func cmdCMSINCRBY(args []string) []byte {
+	if len(args) < 3 || len(args)%2 == 0 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'CMS.INCBY' command"), false)
+	}
+	key := args[0]
+	cms, exist := cmsStore[key]
+	if !exist {
+		return Encode(errors.New("CMS: key does not exist"), false)
+	}
+	var res []string
+	for i := 1; i < len(args); i += 2 {
+		item := args[i]
+		value, err := strconv.ParseUint(args[i+1], 10, 32)
+		if err != nil {
+			return Encode(errors.New(fmt.Sprintf("increment must be a non negative integer number %s", args[1])), false)
+		}
+		count := cms.IncrBy(item, uint64(value))
+		if count == math.MaxUint32 {
+			res = append(res, "CMS: INCRBY overflow")
+			continue
+		}
+		res = append(res, fmt.Sprintf("%d", count))
+	}
+	return Encode(res, false)
+}
+
+func cmdCMSQUERY(args []string) []byte {
+	if len(args) < 2 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'CMS.QUERY' command"), false)
+	}
+	key := args[0]
+	cms, exist := cmsStore[key]
+	if !exist {
+		return Encode(errors.New("CMS: key does not exist"), false)
+	}
+	var res []string
+	for i := 1; i < len(args); i++ {
+		item := args[i]
+		res = append(res, fmt.Sprintf("%d", cms.Estimate(item)))
+	}
+	return Encode(res, false)
 }
