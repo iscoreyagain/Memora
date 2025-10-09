@@ -39,8 +39,8 @@ func SetNumElemsLp(lp *ListPack, b uint16) {
 	binary.LittleEndian.PutUint16(lp.data[4:6], b)
 }
 
-func NewListPack() *ListPack {
-	data := make([]byte, constant.LP_HEADER_SIZE+1)
+func NewListPack(size int) *ListPack {
+	data := make([]byte, max(size, constant.LP_HEADER_SIZE+1))
 	data[constant.LP_HEADER_SIZE] = 0xFF
 	lp := &ListPack{data: data}
 	SetTotBytesLp(lp, constant.LP_HEADER_SIZE+1)
@@ -48,32 +48,37 @@ func NewListPack() *ListPack {
 	return lp
 }
 
+func (lp *ListPack) Bytes() int32 {
+	return GetTotBytes(lp)
+}
+
 func (lp *ListPack) Skip(pos uint64) uint64 {
 	entryLen := GetCurrentEncodedSize(lp.data[pos:])
-	entryLen += encodeBacklen(nil, entryLen)
+	entryLen += GetBacklenBytes(entryLen)
 
 	return pos + entryLen
 }
 
-func (lp *ListPack) Next(pos uint64) *uint64 {
+func (lp *ListPack) Next(pos uint64) (uint64, bool) {
 	pos += lp.Skip(pos)
-	if lp.data[pos] == EOF {
-		return nil
+	if pos > uint64(len(lp.data)) || lp.data[pos] == EOF {
+
+		return 0, false
 	}
-	return &pos
+	return pos, true
 }
 
-func (lp *ListPack) Prev(pos uint64) *uint64 {
+func (lp *ListPack) Prev(pos uint64) (uint64, bool) {
 	if pos == 0 || lp.data[pos-1] == EOF {
-		return nil
+		return 0, false
 	}
 
-	prevLen := decodeBacklen(lp.data[:pos])
-	total := prevLen + encodeBacklen(nil, prevLen)
+	prevLen := DecodeBacklen(lp.data[:pos])
+	prevLen += EncodeBacklen(nil, prevLen)
 
-	newPos := pos - total
+	newPos := pos - prevLen
 
-	return &newPos
+	return newPos, true
 }
 
 func GetTotBytes(lp *ListPack) int32 {
@@ -84,6 +89,7 @@ func GetNumElems(lp *ListPack) int16 {
 	return int16(binary.LittleEndian.Uint16(lp.data[4:6]))
 }
 
+/*
 // LPUSH
 func (lp *ListPack) LPush(members ...interface{}) int {
 	added := 0
@@ -125,8 +131,8 @@ func (lp *ListPack) RPush(members ...interface{}) int {
 	lp.data = append(lp.data, 0xFF)
 	return added
 }
-
-func EncodeEntry(member interface{}) ([]byte, error) {
+*/
+/*func EncodeEntry(member interface{}) ([]byte, error) {
 	var encoding byte
 	var content []byte
 	var entryLen int
@@ -160,90 +166,105 @@ func EncodeEntry(member interface{}) ([]byte, error) {
 
 	return entry, nil
 }
-
-func encodeLen(length int) []byte {
-	// One-byte length (for small entries)
-	// length = 25 ---> [0x19]
-	if length <= 127 {
-		return []byte{byte(length)}
-	}
-
-	// 5-byte length (for large entries)
-	// length = 300 ----> [0xFE   0x00   0x00   0x01   0x2C] ----> Little Endian ----> [0xFE   0x2C   0x01   0x00   0x00]
-	b := make([]byte, 5)
-	b[0] = 0xFE
-	binary.LittleEndian.PutUint32(b[1:], uint32(length))
-
-	return b
-}
-
-func encodeString(member string) (byte, []byte, int, error) {
-	var encoding byte
+*/
+func encodeString(member string) ([]byte, []byte, uint32, error) {
+	var encoding []byte // 1-byte encoding byte and 1/2/4 byte(s) for its length
 	var content []byte
-	var entryLen int
+	var entryLen uint32
 
 	length := len(member)
-	if length < 64 {
-		encoding = byte(length) & 0x3F // 0011 1111 - for .i.e 10010110 & 00111111 -> 00010110
+	if length < 64 { //6-bit string
+		encoding = append(encoding, byte(length)|0x80) // byte pattern: 10xxxxxx
 		content = []byte(member)
-		entryLen = 1 + length
-	} else if length < 16384 { // for the case length < 16384
-		encoding = byte(length>>8) & 0x3F
-		encoding |= 0x40 // 0100 0000
-		content = append([]byte{byte(length & 0xFF)}, []byte(member)...)
-		entryLen = 1 + len(content)
-	} else if length <= (1 << 32) {
+		entryLen = uint32(1 + length)
+	} else if length < 4096 { // 12-bit string (1110xxxx)
+		encoding = append(encoding, byte(length>>8)|0xE0)
+		encoding = append(encoding, byte(length)&0xFF)
+		content = []byte(member)
+		entryLen = uint32(2 + length)
+	} else if length <= (1 << 32) { //32-bit string (0xF0 + 4 bytes for byte representation of its length)
 		// 0x80 -> 10|00 0000
-		encoding = byte(0x80)
-		lenBytes := make([]byte, 4)
-		binary.LittleEndian.PutUint32(lenBytes, uint32(length))
-		content = append(lenBytes, []byte(member)...)
-		entryLen = 1 + len(content)
+		encoding = make([]byte, 5)
+		encoding[0] = 0xF0
+		binary.LittleEndian.PutUint32(encoding[1:], uint32(length))
+		content = []byte(member)
+		entryLen = uint32(5 + length)
 	} else {
-		return 0, nil, 0, fmt.Errorf("string length exceeds 32-bit limit")
+		return nil, nil, 0, fmt.Errorf("string length exceeds 32-bit limit")
 	}
 	return encoding, content, entryLen, nil
 }
 
-func encodeInteger(member interface{}) (byte, []byte, int, error) {
-	var encoding byte
-	var content []byte
-	var entryLen int
+/*
+	func encodeInteger(member interface{}) (byte, []byte, int, error) {
+		var encoding byte
+		var content []byte
+		var entryLen int
 
-	switch v := member.(type) {
-	case int8: // 1 byte
-		entryLen = 1 + 1
-		encoding = 0xC0
-		content = []byte{byte(v)}
+		switch v := member.(type) {
+		case int8: // 1 byte
+			entryLen = 1 + 1
+			encoding = 0xC0
+			content = []byte{byte(v)}
 
-	case int16: // 2 byte
-		entryLen = 1 + 2
-		encoding = 0xD0
-		b := make([]byte, 2)
-		binary.LittleEndian.PutUint16(b, uint16(v))
-		content = b
+		case int16: // 2 byte
+			entryLen = 1 + 2
+			encoding = 0xD0
+			b := make([]byte, 2)
+			binary.LittleEndian.PutUint16(b, uint16(v))
+			content = b
 
-	// Go doesn't have supported int24 (3-byte int) yet so for educational purpose, we will temporarily ignore it
-	case int32:
-		entryLen = 1 + 4
-		b := make([]byte, 4)
-		binary.LittleEndian.PutUint32(b, uint32(v))
-		encoding = 0xF0
-		content = b
+		// Go doesn't have supported int24 (3-byte int) yet so for educational purpose, we will temporarily ignore it
+		case int32:
+			entryLen = 1 + 4
+			b := make([]byte, 4)
+			binary.LittleEndian.PutUint32(b, uint32(v))
+			encoding = 0xF0
+			content = b
 
-	case int64:
-		encoding = 0xF1
-		b := make([]byte, 8)
-		binary.LittleEndian.PutUint64(b, uint64(v))
-		entryLen = 1 + 8
-		content = b
+		case int64:
+			encoding = 0xF1
+			b := make([]byte, 8)
+			binary.LittleEndian.PutUint64(b, uint64(v))
+			entryLen = 1 + 8
+			content = b
+		default:
+			return 0, nil, 0, fmt.Errorf("Unsupported integer type: %T", member)
+		}
+
+		return encoding, content, entryLen, nil
+	}
+*/
+func encodingInteger(value int64) ([]byte, int64) {
+	switch {
+	case value >= 0 && value <= 127:
+		return []byte{byte(value)}, 1
+	case value >= -32768 && value <= 32767: //16-bit signed integer
+		if value < 0 {
+			value = (1 << 16) + value
+		}
+		b := make([]byte, 3)
+		b[0] = constant.ENCODING_16BIT_INT
+		binary.LittleEndian.PutUint16(b[1:], uint16(value))
+
+		return b, 3
+	case value >= -2147483648 && value <= 2147483647: //32-bit signed integer
+		if value < 0 {
+			value = (1 << 32) + value
+		}
+		b := make([]byte, 5)
+		b[0] = constant.ENCODING_32BIT_INT
+		binary.LittleEndian.PutUint32(b[1:], uint32(value))
+
+		return b, 5
 	default:
-		return 0, nil, 0, fmt.Errorf("Unsupported integer type: %T", member)
+		b := make([]byte, 9)
+		b[0] = constant.ENCODING_64BIT_INT
+		binary.LittleEndian.PutUint64(b[1:], uint64(value))
+
+		return b, 9
 	}
-
-	return encoding, content, entryLen, nil
 }
-
 func Get6BitStrLen(bytes []byte) int {
 	return int(bytes[0] & 0x3F)
 }
@@ -290,7 +311,7 @@ func GetCurrentEncodedSize(bytes []byte) uint64 {
 
 // This is the last thing of a LP's element structure (encoding type + element data + backlen) to be added. Thanks to
 // this genius design allowing us to backward traversal (traverse from the right to the left)
-func encodeBacklen(buf []byte, length uint64) uint64 {
+func EncodeBacklen(buf []byte, length uint64) uint64 {
 	if length <= 127 {
 		if buf != nil {
 			buf[0] = byte(length)
@@ -329,7 +350,7 @@ func encodeBacklen(buf []byte, length uint64) uint64 {
 	}
 }
 
-func decodeBacklen(bytes []byte) uint64 {
+func DecodeBacklen(bytes []byte) uint64 {
 	var value uint64
 	var shift uint64
 
@@ -345,4 +366,27 @@ func decodeBacklen(bytes []byte) uint64 {
 	}
 
 	return value
+}
+
+// ** Return the number of bytes that required to use for reverse-encoding the Backlen field -
+// representing the length of previous elem (range 1  -> 5)
+func GetBacklenBytes(length uint64) uint64 {
+	if length <= 127 {
+		return 1
+	} else if length < 16383 {
+		return 2
+	} else if length < 2097151 {
+		return 3
+	} else if length < 268435455 {
+		return 4
+	} else {
+		return 5
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
