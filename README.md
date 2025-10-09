@@ -17,6 +17,10 @@ a mini-Redis re-implementation with some inspired features by [DragonflyDB](http
 
   ○ SADD, SREM, SMEMBERS, SCARD, SINTER, SINTERSTORE, SDIFF, SDIFFSTORE, SUNION, SUNIONSTORE
 
+  ○ BF.RESERVE, BF.EXISTS, BF.MADD
+
+  ○ CMS.INITBYDIM, CMS.INITBYPROB, CMS.QUERY, CMS.INCRBY
+
   
 - Data structures:
 
