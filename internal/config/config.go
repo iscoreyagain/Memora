@@ -13,3 +13,5 @@ var EVICTION_POLICY string = "allkeys-random"
 
 var POOL_MAXIMUM_SIZE = 16
 var POOL_LRU_SIZE = 5 //Sample
+
+var LISTENER_NUM int = 2

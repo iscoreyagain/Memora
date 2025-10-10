@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,7 +17,15 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go server.RunIoMultiplexingServer(&wg)
+	go server.RunIoMultiplexingServer(&wg) // single-threaded
+	//s := server.NewServer()
+	//go s.StartSingleListener(&wg)
+	//go s.StartMultiListeners(&wg)
 	go server.WaitForSignals(&wg, signals)
+
+	// Expose the /debug/pprof endpoints on a separate goroutine
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	wg.Wait()
 }

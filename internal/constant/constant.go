@@ -24,12 +24,16 @@ const SERVER_BUSY = 2
 const SERVER_SHUTDOWN = 3
 
 const LP_HEADER_SIZE = 6
+const ListPackMaxSize = 4096 //~4 MB
+const ListPackMaxEntries = 32
+
+// Encoding Integer
 const ENCODING_7BIT_UINT byte = 0    // 0xxxxxxx
-const ENCODING_6BIT_STR byte = 0x80  // 10xxxxxx
 const ENCODING_16BIT_INT byte = 0xF1 // 11110001
 const ENCODING_32BIT_INT byte = 0xF3 // 11110011
 const ENCODING_64BIT_INT byte = 0xF4 // 11110100
+
+// String
+const ENCODING_6BIT_STR byte = 0x80  // 10xxxxxx
 const ENCODING_12BIT_STR byte = 0xE0 // 1110xxxx
 const ENCODING_32BIT_STR byte = 0xF0 // 11110000
-
-// String length

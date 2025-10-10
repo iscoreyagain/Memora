@@ -24,6 +24,32 @@ func cmdBFEXISTS(args []string) []byte {
 	return constant.RespOne
 }
 
+func cmdBFMEXISTS(args []string) []byte {
+	if len(args) < 2 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'BF.MEXISTS' command"), false)
+	}
+	key := args[0]
+	bloom, exist := bloomStore[key]
+
+	res := make([]string, len(args)-1)
+	if !exist {
+		for i := range res {
+			res[i] = "0"
+		}
+
+		return Encode(res, false)
+	}
+
+	for i := 1; i < len(args); i++ {
+		if bloom.Exist(args[i]) {
+			res[i-1] = "1"
+		} else {
+			res[i-1] = "0"
+		}
+	}
+	return Encode(res, false)
+}
+
 func cmdBFRESERVE(args []string) []byte {
 	if !(len(args) == 3 || len(args) == 5) {
 		return Encode(errors.New("(error) ERR wrong number of arguments for 'BF.RESERVE' command"), false)
@@ -63,4 +89,59 @@ func cmdBFMADD(args []string) []byte {
 		res = append(res, "1")
 	}
 	return Encode(res, false)
+}
+
+func cmdBFINFO(args []string) []byte {
+	if len(args) != 1 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'BF.INFO' command"), false)
+	}
+
+	key := args[0]
+	bloom, exist := bloomStore[key]
+	if !exist {
+		return Encode(errors.New(fmt.Sprintf("(error) key '%s' does not exist", key)), false)
+	}
+
+	info := map[string]interface{}{
+		"Capacity":   bloom.Entries,
+		"Size":       bloom.Bytes,
+		"Items":      bloom.Items,
+		"Error rate": bloom.Error,
+	}
+
+	return Encode(info, false)
+}
+
+func cmdBFCARD(args []string) []byte {
+	if len(args) != 1 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'BF.CARD' command"), false)
+	}
+
+	key := args[0]
+	bloom, exist := bloomStore[key]
+	if !exist {
+		return Encode(0, false)
+	}
+
+	cardinality := bloom.Items
+	return Encode(cardinality, false)
+}
+
+func cmdBFADD(args []string) []byte {
+	if len(args) != 2 {
+		return Encode(errors.New("(error) ERR wrong number of arguments for 'BF.ADD' command"), false)
+	}
+	key, item := args[0], args[1]
+	bloom, exist := bloomStore[key]
+	if !exist {
+		bloom = data_structure.CreateBloomFilter(constant.BfDefaultInitCapacity,
+			constant.BfDefaultErrRate)
+		bloomStore[key] = bloom
+	}
+	if bloom.Exist(item) {
+		return Encode(0, false)
+	} else {
+		bloom.Add(item)
+		return Encode(1, false)
+	}
 }

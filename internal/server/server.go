@@ -97,6 +97,16 @@ func readCommands(fd int) (*core.Command, error) {
 	return core.ParseCmd(buf)
 }
 
+func readCommandConn(conn net.Conn) (*core.Command, error) {
+	var buf = make([]byte, 512)
+	// Use the Read method from the net.Conn interface
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, err // This will properly handle io.EOF
+	}
+	return core.ParseCmd(buf[:n])
+}
+
 func respond(data string, fd int) error {
 	if _, err := unix.Write(fd, []byte(data)); err != nil {
 		return err

@@ -147,10 +147,18 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 	// Bloom filter
 	case "BF.RESERVE":
 		res = cmdBFRESERVE(cmd.Args)
+	case "BF.ADD":
+		res = cmdBFADD(cmd.Args)
 	case "BF.MADD":
 		res = cmdBFMADD(cmd.Args)
 	case "BF.EXISTS":
 		res = cmdBFEXISTS(cmd.Args)
+	case "BF.MEXISTS":
+		res = cmdBFMEXISTS(cmd.Args)
+	case "BF.INFO":
+		res = cmdBFINFO(cmd.Args)
+	case "BF.CARD":
+		res = cmdBFCARD(cmd.Args)
 	default:
 		res = []byte(fmt.Sprintf("-CMD NOT FOUND\r\n"))
 	}
