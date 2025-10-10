@@ -2,10 +2,6 @@ package core
 
 import (
 	"errors"
-	"fmt"
-	"strconv"
-
-	"github.com/iscoreyagain/Memora/internal/data_structure"
 )
 
 func cmdRPUSH(args []string) []byte {

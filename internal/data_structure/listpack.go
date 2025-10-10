@@ -19,16 +19,21 @@ const EOF = 0xFF
 // 	+ tot-bytes (4 bytes) tell us the total length of the listpack (including the header itself + the terminator byte)
 //  + num-elements (2 bytes) give us the count of elements that this listpack currently stored
 
-// - entry-len: the total length of the entry (including itself) for jumping
-// - encoding: the internal-used flag tell us what the data type of entry stored
+// - encoding: the total length of the entry (including itself) for jumping
 // - data/content: the actual content
+// - backlen: the total length (including encoding and content) of the CURRENT elem allowing backward traversal
 // - 0xFF: the end marker after the last entry
-
-//	[entry-len][data]
-//  in `entry-len`: [encoding][extra length bytes]
 
 type ListPack struct {
 	data []byte
+}
+
+func GetTotBytes(lp *ListPack) uint32 {
+	return binary.LittleEndian.Uint32(lp.data[:4])
+}
+
+func GetNumElems(lp *ListPack) uint16 {
+	return binary.LittleEndian.Uint16(lp.data[4:6])
 }
 
 func SetTotBytesLp(lp *ListPack, b uint32) {
@@ -48,7 +53,7 @@ func NewListPack(size int) *ListPack {
 	return lp
 }
 
-func (lp *ListPack) Bytes() int32 {
+func (lp *ListPack) Bytes() uint32 {
 	return GetTotBytes(lp)
 }
 
@@ -81,92 +86,162 @@ func (lp *ListPack) Prev(pos uint64) (uint64, bool) {
 	return newPos, true
 }
 
-func GetTotBytes(lp *ListPack) int32 {
-	return int32(binary.LittleEndian.Uint32(lp.data[:4]))
+func toBytes(member interface{}) ([]byte, error) {
+	switch v := member.(type) {
+	case string:
+		return []byte(v), nil
+	case []byte:
+		return v, nil
+	case int, int64, int32:
+		return []byte(fmt.Sprintf("%v", v)), nil
+	default:
+		return nil, fmt.Errorf("unsupported type %T", v)
+	}
 }
 
-func GetNumElems(lp *ListPack) int16 {
-	return int16(binary.LittleEndian.Uint16(lp.data[4:6]))
+// This func is used to know whether we can convert a slice of bytes (of a string, ofc) to int64. If we succeed
+// in converting to a (non-overflowing) signed 64-bit integer, the func will return `1` and its len in bytes.
+// Else, it returns `0`
+func BytesToInt64(s []byte) (int64, bool) {
+	slen := len(s)
+	if slen == 0 || slen >= 21 { //Overflow to a signed 64-bit integer
+		return 0, false
+	}
+
+	if slen == 1 && s[0] == '0' {
+		return 0, false
+	}
+
+	pos := 0
+	negative := false
+	var val uint64
+
+	if s[pos] == '-' { //Edge case: string: '-' -> string would be more appropriate
+		negative = true
+		pos++
+
+		if pos == slen {
+			return 0, false
+		}
+	}
+
+	if s[pos] >= '1' && s[pos] <= '9' { //First digit must be somewhere around 1 -> 9
+		val = uint64(s[pos] - '0')
+		pos++
+	} else {
+		return 0, false
+	}
+
+	for pos < slen {
+		if s[pos] < '0' || s[pos] > '9' {
+			return 0, false
+		}
+
+		if val > math.MaxUint64/10 {
+			return 0, false
+		}
+		val *= 10
+
+		if val > math.MaxUint64-uint64(s[pos]-'0') {
+			return 0, false
+		}
+		val += uint64(s[pos] - '0')
+		pos++
+	}
+
+	if negative {
+		if val > uint64(-(math.MinInt64+1))+1 {
+			return 0, false
+		}
+		return -int64(val), true
+	}
+
+	if val > math.MaxInt64 {
+		return 0, false
+	}
+
+	return int64(val), true
 }
 
-/*
 // LPUSH
-func (lp *ListPack) LPush(members ...interface{}) int {
+func (lp *ListPack) PushLeft(members ...interface{}) int {
+	header := lp.data[:6]
+	old := lp.data[6:]
+
 	added := 0
 	var arr []byte
-	for _, m := range members {
-		entry, err := EncodeEntry(m)
+	for i := len(members) - 1; i >= 0; i-- {
+		entry, err := toBytes(members[i])
 		if err != nil {
 			continue
 		}
-		arr = append(arr, entry...)
+		encoding, content, entryLen, _ := EncodeOne(entry)
+
+		//Encode the backlen field for backward traversal
+		backLen := EncodeBacklen(nil, uint64(entryLen)) // just length
+		buf := make([]byte, backLen)
+		EncodeBacklen(buf, uint64(entryLen))
+
+		arr = append(arr, encoding...)
+		arr = append(arr, content...)
+		arr = append(arr, buf...)
 		added++
 	}
-	lp.data = append(arr, lp.data...)
-
+	lp.data = append(header, append(arr, old...)...)
 	if len(lp.data) == 0 || lp.data[len(lp.data)-1] != 0xFF {
 		lp.data = append(lp.data, 0xFF)
 	}
+	SetTotBytesLp(lp, uint32(len(lp.data)))
+	SetNumElemsLp(lp, GetNumElems(lp)+uint16(added))
 
 	return added
 }
 
 // RPUSH
-func (lp *ListPack) RPush(members ...interface{}) int {
-	added := 0
-
-	if len(lp.data) > 0 && lp.data[len(lp.data)-1] == 0xFF {
+func (lp *ListPack) PushRight(members ...interface{}) int {
+	//Remove the EOF at the end of the listpack
+	if lp.data[len(lp.data)-1] == EOF {
 		lp.data = lp.data[:len(lp.data)-1]
 	}
-
-	for _, m := range members {
-		entry, err := EncodeEntry(m)
+	added := 0
+	for _, member := range members {
+		entry, err := toBytes(member)
 		if err != nil {
-			return added
+			continue
 		}
-		lp.data = append(lp.data, entry...)
+		encoding, content, entryLen, _ := EncodeOne(entry)
+
+		//Encode the backlen field for backward traversal
+		backLen := EncodeBacklen(nil, uint64(entryLen)) // just length
+		buf := make([]byte, backLen)
+		EncodeBacklen(buf, uint64(entryLen))
+
+		lp.data = append(lp.data, encoding...)
+		lp.data = append(lp.data, content...)
+		lp.data = append(lp.data, buf...)
 		added++
 	}
+	lp.data = append(lp.data, EOF)
+	SetTotBytesLp(lp, uint32(len(lp.data)))
+	SetNumElemsLp(lp, GetNumElems(lp)+uint16(added))
 
-	lp.data = append(lp.data, 0xFF)
 	return added
 }
-*/
-/*func EncodeEntry(member interface{}) ([]byte, error) {
-	var encoding byte
-	var content []byte
-	var entryLen int
-	var err error
 
-	switch v := member.(type) {
-	case string:
-		encoding, content, entryLen, err = encodeString(v)
-		if err != nil {
-			return nil, err
-		}
-	case int8, int16, int32, int64, int:
-		encoding, content, entryLen, err = encodeInteger(member)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("Unsupported type: %T", member)
+// This func is used to choose the most appropriate data type to store the value and how many bytes will it take
+// ** Return the required size to store this value representation in listpack and the flag
+// ** ok: can be converted to INTEGER else STRING
+func EncodeOne(s []byte) ([]byte, []byte, uint32, bool) {
+	val, ok := BytesToInt64(s)
+	if ok {
+		encoding, size := encodingInteger(val)
+		return encoding, nil, uint32(size), true
+	} else {
+		encoding, content, size, _ := encodeString(string(s))
+		return encoding, content, size, false
 	}
-
-	// 1. Size prefix - tell us how far we should jump to move to the next entry
-	// It's usually 1 OR 5 bytes
-	sizePrefix := encodeLen(entryLen)
-
-	// 2. Assemble to get the encoded entry
-	totalSize := len(content) + len(sizePrefix) + 1 // 1-byte of encoding
-	entry := make([]byte, totalSize)
-	entry = append(entry, sizePrefix...)
-	entry = append(entry, encoding)
-	entry = append(entry, content...)
-
-	return entry, nil
 }
-*/
+
 func encodeString(member string) ([]byte, []byte, uint32, error) {
 	var encoding []byte // 1-byte encoding byte and 1/2/4 byte(s) for its length
 	var content []byte
@@ -195,68 +270,31 @@ func encodeString(member string) ([]byte, []byte, uint32, error) {
 	return encoding, content, entryLen, nil
 }
 
-/*
-	func encodeInteger(member interface{}) (byte, []byte, int, error) {
-		var encoding byte
-		var content []byte
-		var entryLen int
-
-		switch v := member.(type) {
-		case int8: // 1 byte
-			entryLen = 1 + 1
-			encoding = 0xC0
-			content = []byte{byte(v)}
-
-		case int16: // 2 byte
-			entryLen = 1 + 2
-			encoding = 0xD0
-			b := make([]byte, 2)
-			binary.LittleEndian.PutUint16(b, uint16(v))
-			content = b
-
-		// Go doesn't have supported int24 (3-byte int) yet so for educational purpose, we will temporarily ignore it
-		case int32:
-			entryLen = 1 + 4
-			b := make([]byte, 4)
-			binary.LittleEndian.PutUint32(b, uint32(v))
-			encoding = 0xF0
-			content = b
-
-		case int64:
-			encoding = 0xF1
-			b := make([]byte, 8)
-			binary.LittleEndian.PutUint64(b, uint64(v))
-			entryLen = 1 + 8
-			content = b
-		default:
-			return 0, nil, 0, fmt.Errorf("Unsupported integer type: %T", member)
-		}
-
-		return encoding, content, entryLen, nil
-	}
-*/
 func encodingInteger(value int64) ([]byte, int64) {
 	switch {
 	case value >= 0 && value <= 127:
 		return []byte{byte(value)}, 1
+
 	case value >= -32768 && value <= 32767: //16-bit signed integer
-		if value < 0 {
+		/*if value < 0 {
 			value = (1 << 16) + value
-		}
+		}*/
 		b := make([]byte, 3)
 		b[0] = constant.ENCODING_16BIT_INT
 		binary.LittleEndian.PutUint16(b[1:], uint16(value))
 
 		return b, 3
+
 	case value >= -2147483648 && value <= 2147483647: //32-bit signed integer
-		if value < 0 {
+		/*if value < 0 {
 			value = (1 << 32) + value
-		}
+		}*/
 		b := make([]byte, 5)
 		b[0] = constant.ENCODING_32BIT_INT
 		binary.LittleEndian.PutUint32(b[1:], uint32(value))
 
 		return b, 5
+
 	default:
 		b := make([]byte, 9)
 		b[0] = constant.ENCODING_64BIT_INT

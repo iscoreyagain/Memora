@@ -34,7 +34,7 @@ func NewQuickList(head, tail *ListNode, num int) *QuickList {
 }
 
 func NewList(key string) *List {
-	lp := NewListPack()
+	lp := NewListPack(0)
 	node := NewNode(nil, nil, lp)
 	ql := NewQuickList(node, node, 0)
 	list := &List{
@@ -45,22 +45,22 @@ func NewList(key string) *List {
 	return list
 }
 
-func (l *List) RightPush(member ...interface{}) int {
+func (l *List) RPush(member ...interface{}) int {
 	if l.qlist.tail == nil {
 		return 0
 	}
 
-	added := l.qlist.tail.lp.RPush(member...)
+	added := l.qlist.tail.lp.PushRight(member...)
 	l.qlist.count += added
 	return added
 }
 
-func (l *List) LeftPush(member ...interface{}) int {
+func (l *List) LPush(member ...interface{}) int {
 	if l.qlist.head == nil {
 		return 0
 	}
 
-	added := l.qlist.head.lp.LPush(member...)
+	added := l.qlist.head.lp.PushLeft(member...)
 	l.qlist.count += added
 	return added
 }
