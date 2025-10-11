@@ -39,4 +39,6 @@ a mini-Redis re-implementation with some inspired features by [DragonflyDB](http
   ○ [Listpack](https://deepwiki.com/antirez/listpack/2.1-memory-layout-and-encoding#backlen-field-and-backward-traversal)
 
   ○ Quicklist
+
+  ○ [Cuckoo Filter](https://www.cs.cmu.edu/~dga/papers/cuckoo-conext2014.pdf)
   
