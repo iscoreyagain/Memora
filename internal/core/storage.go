@@ -7,6 +7,7 @@ var zsetStore map[string]*data_structure.ZSet
 var setStore map[string]*data_structure.SimpleSet
 var cmsStore map[string]*data_structure.CMS
 var bloomStore map[string]*data_structure.BloomFilter
+var cuckooStore map[string]*data_structure.CuckooFilter
 var listStore map[string]*data_structure.List
 
 func init() {
@@ -16,4 +17,5 @@ func init() {
 	cmsStore = make(map[string]*data_structure.CMS)
 	bloomStore = make(map[string]*data_structure.BloomFilter)
 	listStore = make(map[string]*data_structure.List)
+	cuckooStore = make(map[string]*data_structure.CuckooFilter)
 }
