@@ -16,7 +16,7 @@ func (s *Server) StartSingleListener(wg *sync.WaitGroup) {
 	}
 
 	// Set up listener socket
-	listener, err := net.Listen(config.Protocol, config.Port)
+	listener, err := net.Listen(config.Protocol, config.Host+":"+config.Port)
 	if err != nil {
 		log.Fatal(err)
 	}

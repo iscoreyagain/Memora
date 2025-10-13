@@ -186,6 +186,6 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 	default:
 		res = []byte(fmt.Sprintf("-CMD NOT FOUND\r\n"))
 	}
-	_, err := syscall.Write(syscall.Handle(connFd), res)
+	_, err := syscall.Write(connFd, res)
 	return err
 }

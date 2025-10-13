@@ -17,6 +17,7 @@ const BfDefaultInitCapacity = 100
 const BfDefaultErrRate = 0.01
 
 const CfDefaultInitCapacity = 128 // (1 << 7)
+const CfDefaultErrRate = 0.01
 const CfDefaultBucketSize = 8
 
 const SERVER_IDLE = 1

@@ -32,7 +32,7 @@ func (s *Server) StartMultiListeners(wg *sync.WaitGroup) {
 
 	for i := 0; i < config.LISTENER_NUM; i++ {
 		go func() {
-			listener, err := createReusablePortListener(config.Protocol, config.Port)
+			listener, err := createReusablePortListener(config.Protocol, config.Host+":"+config.Port)
 			log.Printf("Listener %d started listening on %s", i, config.Port)
 			if err != nil {
 				log.Fatal(err)
