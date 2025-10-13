@@ -135,6 +135,10 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 		res = cmdSUNION(cmd.Args)
 	case "SUNIONSTORE":
 		res = cmdSUNIONSTORE(cmd.Args)
+	case "SINTER":
+		res = cmdSINTER(cmd.Args)
+	case "SINTERSTORE":
+		res = cmdSINTERSTORE(cmd.Args)
 	// Count-Min Sketch
 	case "CMS.INITBYDIM":
 		res = cmdCMSINITBYDIM(cmd.Args)
@@ -159,6 +163,26 @@ func ExecuteAndResponse(cmd *Command, connFd int) error {
 		res = cmdBFINFO(cmd.Args)
 	case "BF.CARD":
 		res = cmdBFCARD(cmd.Args)
+	// Cuckoo Filter
+	case "CF.EXISTS":
+		res = cmdCFEXISTS(cmd.Args)
+	case "CF.ADD":
+		res = cmdCFADD(cmd.Args)
+	case "CF.MEXISTS":
+		res = cmdCFMEXISTS(cmd.Args)
+	case "CF.RESERVE":
+		res = cmdCFRESERVE(cmd.Args)
+	case "CF.ADDNX":
+		res = cmdCFADDNX(cmd.Args)
+	case "CF.DEL":
+		res = cmdCFDEL(cmd.Args)
+	// List
+	case "LLEN":
+		res = cmdLLEN(cmd.Args)
+	case "LPUSH":
+		res = cmdLPUSH(cmd.Args)
+	case "RPUSH":
+		res = cmdRPUSH(cmd.Args)
 	default:
 		res = []byte(fmt.Sprintf("-CMD NOT FOUND\r\n"))
 	}
