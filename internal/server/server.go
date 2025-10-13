@@ -118,7 +118,7 @@ func respond(data string, fd int) error {
 func RunIoMultiplexingServer(wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Println("Running I/O Multiplexing Server on port", config.Port)
-	listener, err := net.Listen(config.Protocol, config.Port)
+	listener, err := net.Listen(config.Protocol, config.Host+":"+config.Port)
 	if err != nil {
 		log.Fatal(err)
 	}

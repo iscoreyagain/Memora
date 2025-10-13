@@ -95,6 +95,82 @@ func (w *Worker) ExecuteAndResponse(task *Task) {
 		res = w.cmdGET(task.Command.Args)
 	case "PING":
 		res = w.cmdPING(task.Command.Args)
+	case "INFO":
+		res = cmdINFO(task.Command.Args)
+	case "TTL":
+		res = cmdTTL(task.Command.Args)
+	case "ZADD":
+		res = cmdZADD(task.Command.Args)
+	case "ZSCORE":
+		res = cmdZSCORE(task.Command.Args)
+	case "ZRANK":
+		res = cmdZRANK(task.Command.Args)
+	case "SADD":
+		res = cmdSADD(task.Command.Args)
+	case "SREM":
+		res = cmdSREM(task.Command.Args)
+	case "SMEMBERS":
+		res = cmdSMEMBERS(task.Command.Args)
+	case "SISMEMBER":
+		res = cmdSISMEMBER(task.Command.Args)
+	case "SCARD":
+		res = cmdSCARD(task.Command.Args)
+	case "SDIFF":
+		res = cmdSDIFF(task.Command.Args)
+	case "SDIFFSTORE":
+		res = cmdSDIFFSTORE(task.Command.Args)
+	case "SUNION":
+		res = cmdSUNION(task.Command.Args)
+	case "SUNIONSTORE":
+		res = cmdSUNIONSTORE(task.Command.Args)
+	case "SINTER":
+		res = cmdSINTER(task.Command.Args)
+	case "SINTERSTORE":
+		res = cmdSINTERSTORE(task.Command.Args)
+	// Count-Min Sketch
+	case "CMS.INITBYDIM":
+		res = cmdCMSINITBYDIM(task.Command.Args)
+	case "CMS.INITBYPROB":
+		res = cmdCMSINITBYPROB(task.Command.Args)
+	case "CMS.INCRBY":
+		res = cmdCMSINCRBY(task.Command.Args)
+	case "CMS.QUERY":
+		res = cmdCMSQUERY(task.Command.Args)
+	// Bloom filter
+	case "BF.RESERVE":
+		res = cmdBFRESERVE(task.Command.Args)
+	case "BF.ADD":
+		res = cmdBFADD(task.Command.Args)
+	case "BF.MADD":
+		res = cmdBFMADD(task.Command.Args)
+	case "BF.EXISTS":
+		res = cmdBFEXISTS(task.Command.Args)
+	case "BF.MEXISTS":
+		res = cmdBFMEXISTS(task.Command.Args)
+	case "BF.INFO":
+		res = cmdBFINFO(task.Command.Args)
+	case "BF.CARD":
+		res = cmdBFCARD(task.Command.Args)
+	// Cuckoo Filter
+	case "CF.EXISTS":
+		res = cmdCFEXISTS(task.Command.Args)
+	case "CF.ADD":
+		res = cmdCFADD(task.Command.Args)
+	case "CF.MEXISTS":
+		res = cmdCFMEXISTS(task.Command.Args)
+	case "CF.RESERVE":
+		res = cmdCFRESERVE(task.Command.Args)
+	case "CF.ADDNX":
+		res = cmdCFADDNX(task.Command.Args)
+	case "CF.DEL":
+		res = cmdCFDEL(task.Command.Args)
+	// List
+	case "LLEN":
+		res = cmdLLEN(task.Command.Args)
+	case "LPUSH":
+		res = cmdLPUSH(task.Command.Args)
+	case "RPUSH":
+		res = cmdRPUSH(task.Command.Args)
 	default:
 		res = []byte(fmt.Sprintf("-CMD NOT FOUND\r\n"))
 	}

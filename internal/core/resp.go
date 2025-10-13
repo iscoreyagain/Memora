@@ -27,7 +27,11 @@ var RespNil = []byte("$-1\r\n")
 
 // +OK\r\n ==> "OK", 5
 func readString(data []byte) (string, int, error) {
-	return string(data[1 : len(data)-2]), len(data), nil
+	pos := 1
+	for data[pos] != '\r' {
+		pos++
+	}
+	return string(data[1:pos]), pos + 2, nil
 }
 
 // Có thể sẽ phải implement lại kiểu khác
@@ -71,10 +75,10 @@ func readError(data []byte) (string, int, error) {
 
 // $12\r\nHello\r\nWorld\r\n ==> "Hello\r\nWorld"
 func readBulkString(data []byte) (string, int, error) {
-	len, pos := readLen(data)
-	s := string(data[pos:(pos + len)])
+	length, pos := readLen(data)
+	s := string(data[pos:(pos + length)])
 
-	return s, len + pos + 2, nil
+	return s, length + pos + 2, nil
 }
 
 // *2\r\n$5\r\nhello\r\n$5\r\nworld\r\n => {"hello", "world"}
@@ -170,6 +174,8 @@ func Encode(value interface{}, isSimpleString bool) []byte {
 
 func ParseCmd(data []byte) (*Command, error) {
 	value, err := Decode(data)
+	//debugging
+	fmt.Println("ParseCmd decoded value:", value, "err:", err)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +185,7 @@ func ParseCmd(data []byte) (*Command, error) {
 	for i := range tokens {
 		tokens[i] = array[i].(string)
 	}
-	res := &Command{Cmd: strings.ToUpper(tokens[0]), Args: tokens[1:]}
+	res := &Command{Cmd: strings.ToUpper(strings.TrimSpace(tokens[0])),
+		Args: tokens[1:]}
 	return res, nil
 }
