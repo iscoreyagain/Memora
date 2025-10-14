@@ -174,8 +174,7 @@ func Encode(value interface{}, isSimpleString bool) []byte {
 
 func ParseCmd(data []byte) (*Command, error) {
 	value, err := Decode(data)
-	//debugging
-	fmt.Println("ParseCmd decoded value:", value, "err:", err)
+
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +184,7 @@ func ParseCmd(data []byte) (*Command, error) {
 	for i := range tokens {
 		tokens[i] = array[i].(string)
 	}
-	res := &Command{Cmd: strings.ToUpper(strings.TrimSpace(tokens[0])),
+	res := &Command{Cmd: strings.ToUpper(tokens[0]),
 		Args: tokens[1:]}
 	return res, nil
 }

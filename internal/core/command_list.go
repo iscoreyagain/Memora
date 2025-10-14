@@ -17,7 +17,7 @@ func cmdRPUSH(args []string) []byte {
 		list = data_structure.NewList(key)
 		listStore[key] = list
 	}
-	list.RPush(args[1:])
+	list.RPush(convertToInterfaces(args[1:])...)
 
 	return Encode(list.Len(), false)
 }
@@ -48,7 +48,16 @@ func cmdLPUSH(args []string) []byte {
 		list = data_structure.NewList(key)
 		listStore[key] = list
 	}
-	list.LPush(args[1:])
+	list.LPush(convertToInterfaces(args[1:])...)
 
 	return Encode(list.Len(), false)
+}
+
+// helper functions
+func convertToInterfaces(strs []string) []interface{} {
+	res := make([]interface{}, len(strs))
+	for i, s := range strs {
+		res[i] = s
+	}
+	return res
 }

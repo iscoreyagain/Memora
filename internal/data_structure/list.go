@@ -46,23 +46,15 @@ func NewList(key string) *List {
 }
 
 func (l *List) RPush(member ...interface{}) int {
-	if l.qlist.tail == nil {
-		return 0
-	}
-
 	added := l.qlist.tail.lp.PushRight(member...)
 	l.qlist.count += added
-	return added
+	return l.qlist.count
 }
 
 func (l *List) LPush(member ...interface{}) int {
-	if l.qlist.head == nil {
-		return 0
-	}
-
 	added := l.qlist.head.lp.PushLeft(member...)
 	l.qlist.count += added
-	return added
+	return l.qlist.count
 }
 
 func (l *List) Len() int {

@@ -193,6 +193,7 @@ func RunIoMultiplexingServer(wg *sync.WaitGroup) {
 					log.Println("err", err)
 					continue
 				}
+				unix.SetNonblock(connFd, true)
 				log.Printf("set up a new connection")
 				// ask epoll to monitor this connection
 				if err = ioMultiplexer.Monitor(io_multiplexing.Event{

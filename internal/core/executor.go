@@ -98,10 +98,6 @@ func cmdINFO(args []string) []byte {
 
 // ExecuteAndResponse given a Command, executes it and responses
 func ExecuteAndResponse(cmd *Command, connFd int) error {
-	//debug
-	fmt.Println("Received command:", cmd.Cmd, "Args:", cmd.Args)
-	fmt.Println("Executing command:", cmd.Cmd)
-
 	var res []byte
 
 	switch cmd.Cmd {

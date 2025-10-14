@@ -43,7 +43,7 @@ func (ep *Epoll) Wait() ([]Event, error) {
 		return nil, err
 	}
 
-	for i := range n {
+	for i := 0; i < n; i++ {
 		ep.genericEvents[i] = createEvent(ep.epollEvents[i])
 	}
 
